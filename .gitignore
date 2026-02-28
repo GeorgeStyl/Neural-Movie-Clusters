@@ -1,0 +1,16 @@
+# IDE Settings (PyCharm, VS Code, etc.)
+.idea/
+.vscode/
+*.iml
+
+# Data and Binaries (The big files)
+data/
+*.npy
+*.csv
+
+
+# Python environment and cache
+__pycache__/
+venv/
+.env
+.ipynb_checkpoints/
