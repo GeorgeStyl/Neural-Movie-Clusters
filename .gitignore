@@ -4,7 +4,9 @@
 *.iml
 
 # Data and Binaries (The big files)
-data/
+data/cleaned_movies_full.csv
+data/Dropbox_Dataset.npy
+data/preview_movies.csv
 *.npy
 *.csv
 
