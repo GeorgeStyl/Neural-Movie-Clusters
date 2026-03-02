@@ -3,13 +3,16 @@
 .vscode/
 *.iml
 
-# Data and Binaries (The big files)
-data/cleaned_movies_full.csv
-data/Dropbox_Dataset.npy
-data/preview_movies.csv
-*.npy
-*.csv
+# Ignore the raw dataset folders
+data/dataset/1_movies_per_genre/
+data/dataset/2_reviews_per_movie_raw/
 
+# Ignore the merged outputs
+data/*.csv
+
+# Ignore large archives
+*.zip
+*.npy
 
 # Python environment and cache
 __pycache__/
