@@ -7,12 +7,17 @@
 data/dataset/1_movies_per_genre/
 data/dataset/2_reviews_per_movie_raw/
 
+<<<<<<< HEAD
+# Ignore it since I have no data for this in this branch
+/home/george/WorkSpace/Master/Eks1/ML/Final_Project/notebooks/01_pre_processing.ipynb
+=======
 # Ignore the merged outputs
 data/*.csv
 
 # Ignore large archives
 *.zip
 *.npy
+>>>>>>> main
 
 # Python environment and cache
 __pycache__/
