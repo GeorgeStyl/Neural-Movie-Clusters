@@ -1,0 +1,28 @@
+Regarding clustering
+
+*Perhaps* choose k-medoids instead of k-means. Book:
+"Representing clusters using medoids has two advantages over the k-means algorithm.
+First, it can be used with data sets originating from either continuous or
+discrete domains,whereas k-means is suited only for the case of continuous domains"
+
+
+keep in mind:
+"PAM (Partitioning Aro-
+und Medoids), CLARA (Clustering LARge Applications), and CLARANS (Clustering
+LargeApplications based on RANdomized Search). Note that the last two algorithms
+are inspired by PAM but are suitable for dealing with large data sets more efficiently
+than PAM."
+
+
+According to the euclidean distance function, Pair B is closer than Pair A. But intuitively, isn't Pair B
+showing much stronger evidence of similar taste?
+Euclidean distance function is implicitly punishing users for having more common ground because distance accumulates
+over dimensions. This creates a counter-intuitive situation where:
+
+    More evidence of similarity → potentially larger distance
+
+    Less evidence → potentially smaller distance
+
+
+THE FIRST METRIC (dist euclidean), we can say that measures: "average disagreement per common item".
+A better way to represent it, would be to divide the quantity the function gives with the number of common items.
