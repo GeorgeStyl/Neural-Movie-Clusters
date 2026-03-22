@@ -1,0 +1,29 @@
+This directory contains all the scripts that regard the analysis and preprocessing of our dataset.
+
+In the .py file "pre_preprocess_data1", we convert the dataset entries into numerical (regarding the columns "username",
+"movie" and "rating", or to datetime objects, regarding the last column "date"
+
+In the file "pre_preprocess_data2", we grab "duplicate ratings", ie ratings that came from the same user regarding
+the same movie. We drop the duplicates, keeping only the last entry (rating).
+
+At "data_form", we make sure that our initial dataset does not contain any zeros, hence the absence of a rating
+(from a user for a movie) must be encoded by us
+
+In the file "dataset_analysis", we perform an early, premature analysis of our dataset, to see how basic filtering
+will alter our dataset, in terms of  the number of training points (users), dimensionality, and sparsity of the final
+matrix.
+
+In the file "dimensionality_testing", we dive deeper into the dimensionality issue, and check whether a meaningful
+dimensionality reduction can be achieved by solely filtering out users based on the number of ratings they have left.
+Due to the disappointing results of this analysis, we move on to
+
+The file "threshold_analysis" performs various checks regarding both filtering conditions, ie minimum number of ratings
+per user *and* number of movies (dimensions) to be kept in the final dataset, in order to see which filtering
+conditions achieve a balance between 1) as minimum information loss as possible, and 2) a meaningful dimensionality
+reduction (plus a slight increase in the density of the final matrix). After determining our final thresholds,
+we complete our data preprocessing
+
+In "preprocess_data.py" the filtering of the dataset is applied, and the data come to a form suitable for our analysis
+later (matrix "users x movies", where "0" entries denote the absence of a rating "user i for movie j")
+
+Finally, in "time_analysis.py" we plot the histograms asked 
