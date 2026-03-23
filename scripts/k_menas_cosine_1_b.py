@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
+
 def my_cosine_metric(r_u, r_v, m, f_u, f_v):
     """Calculates custom cosine distance between two vectors."""
     # Slicing the relevant features

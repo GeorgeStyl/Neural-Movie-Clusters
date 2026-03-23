@@ -1,6 +1,7 @@
-from test3 import KMeansEuclidean as KMeans
 import numpy as np
-
+import matplotlib.pyplot as plt
+import scipy.sparse as sp
+from test3 import KMeansEuclidean as KMeans
 
 # -------------------------------------------------
 # Efficient validity measures
@@ -18,6 +19,7 @@ def davies_bouldin_score(X, labels, kmeans_model):
     for k in range(n_clusters):
         cluster_points = X[labels == k]
         if len(cluster_points) > 0:
+            # Note: Ensure this method in test3 handles the data type of X
             dists = kmeans_model.dist_user_centroid_vectorized(
                 cluster_points, kmeans_model.centroids[k:k + 1])
             intra_dists.append(np.mean(dists))
@@ -59,11 +61,11 @@ def better_coverage_metrics(X, labels):
     for k in range(n_clusters):
         cluster_points = X[labels == k]
         if len(cluster_points) > 0:
-            # What % of movies have > 10% of users rating them?
+            # % of movies with > 10% user coverage within the cluster
             heavy_coverage = np.mean(np.mean(cluster_points > 0, axis=0) > 0.1)
             heavy_coverages.append(heavy_coverage)
 
-            # What % of movies have > 1% of users rating them?
+            # % of movies with > 1% user coverage within the cluster
             light_coverage = np.mean(np.mean(cluster_points > 0, axis=0) > 0.01)
             light_coverages.append(light_coverage)
 
@@ -78,8 +80,21 @@ def better_coverage_metrics(X, labels):
         'light_per_cluster': light_coverages
     }
 
+# -------------------------------------------------
+# Load Data (Handling SciPy Sparse Format)
+# -------------------------------------------------
 
-X = np.load('/home/george/WorkSpace/Master/Eks1/ML/Final_Project/data/user_movie_matrix_rmin_7.npz', allow_pickle=True)
+path = '/home/george/WorkSpace/Master/Eks1/ML/Final_Project/data/user_movie_matrix_rmin_7.npz'
+print(f"Loading sparse matrix from {path}...")
+
+# Load the sparse matrix
+X_sparse = sp.load_npz(path)
+print(f"Loaded sparse matrix of shape: {X_sparse.shape}")
+
+# Convert to dense array for the KMeans fit method
+# WARNING: If this causes a MemoryError, your KMeans class must be refactored for sparse input.
+X = X_sparse.toarray()
+print("Converted to dense array. Starting clustering...")
 
 # -------------------------------------------------
 # Initialize KMeans
@@ -117,14 +132,16 @@ print("\n--- Cluster Validity Measures ---")
 db_score = davies_bouldin_score(X, labels, model)
 print(f"Davies-Bouldin Index: {db_score:.4f} (lower is better)")
 
-# Replace simple coverage with better coverage metrics
 coverage_results = better_coverage_metrics(X, labels)
 
 print("\n--- Summary ---")
 print(f"Average Heavy Coverage (>10% users): {coverage_results['heavy_avg']:.1%}")
 print(f"Average Light Coverage (>1% users): {coverage_results['light_avg']:.1%}")
 
+# -------------------------------------------------
 # Simple interpretation
+# -------------------------------------------------
+
 print("\n--- Interpretation ---")
 if db_score < 1:
     print("✓ Davies-Bouldin: Good separation")
