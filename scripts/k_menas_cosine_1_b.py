@@ -1,82 +1,119 @@
-"""
-1) b)
-"""
 import numpy as np
-from sklearn.metrics import pairwise_distances
+import pandas as pd
+from scipy.sparse import csr_matrix
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import seaborn as sns
+import threading
+import time
+
+total_start = time.perf_counter()  # ← add this line
+
+# --- Live Timer Utility ---
+def live_timer(label="Running"):
+    start = time.perf_counter()
+    while not live_timer.stop:
+        elapsed = time.perf_counter() - start
+        print(f"\r⏱  {label}: {elapsed:.1f}s", end="", flush=True)
+        time.sleep(0.1)
+    elapsed = time.perf_counter() - start
+    print(f"\r✅ {label}: {elapsed:.2f}s")
+
+def run_timed(label, fn, *args, **kwargs):
+    live_timer.stop = False
+    t = threading.Thread(target=live_timer, args=(label,))
+    t.start()
+    result = fn(*args, **kwargs)
+    live_timer.stop = True
+    t.join()
+    return result
 
 
-
-def my_cosine_metric(r_u, r_v, m, f_u, f_v):
-    """Calculates custom cosine distance between two vectors."""
-    # Slicing the relevant features
-    r_u_m, r_v_m = r_u[m], r_v[m]
-    f_u_m, f_v_m = f_u[m], f_v[m]
-
-    def numerator():
-        return np.sum(r_u_m * r_v_m * f_u_m * f_v_m)
-
-    def denominator():
-        term_u = np.sqrt(np.sum((r_u_m ** 2) * f_u_m * f_v_m))
-        term_v = np.sqrt(np.sum((r_v_m ** 2) * f_u_m * f_v_m))
-        return term_u * term_v
-
-    num_sum = numerator()
-    den_sum = denominator()
-
-    if den_sum == 0:
-        return 1.0
-
-    return 1 - (num_sum / den_sum)
+# --- Custom Cosine Distance ---
+def calculate_sparse_custom_cosine(X, f_u, f_v):
+    weights = np.sqrt(f_u * f_v)
+    X_weighted = X.multiply(weights)
+    numerator = X_weighted @ X_weighted.T
+    row_norms = np.sqrt(np.array(X_weighted.power(2).sum(axis=1)).flatten())
+    row_norms[row_norms == 0] = 1e-10
+    denominator = np.outer(row_norms, row_norms)
+    similarity = numerator.toarray() / denominator
+    dist_matrix = 1 - similarity
+    np.fill_diagonal(dist_matrix, 0)
+    return np.clip(dist_matrix, 0, 1)
 
 
-def calculate_custom_distance_matrix(data_tensor, m_indices, f_u, f_v):
-    """Computes the full NxN distance matrix for the dataset."""
-    n_samples = data_tensor.shape[0]
-    dist_matrix = np.zeros((n_samples, n_samples))
+# --- 1. Load Data ---
+FILE_PATH = '../data/dataset_clean.npy'
+print(f"Loading data from {FILE_PATH}...")
+raw_data = run_timed("Loading .npy file", np.load, FILE_PATH, allow_pickle=True)
 
-    print("Calculating custom distance matrix for {n_samples} samples...")
+# --- 2. Build DataFrame ---
+df = pd.DataFrame(raw_data, columns=['userId', 'movieId', 'rating', 'timestamp'])
+df = df[['userId', 'movieId', 'rating']].astype({'userId': int, 'movieId': int, 'rating': float})
+print(f"Ratings log: {df.shape[0]:,} entries | "
+      f"{df['userId'].nunique():,} users | "
+      f"{df['movieId'].nunique():,} movies")
 
-    for i in range(n_samples):
-        for j in range(i + 1, n_samples):
-            dist = my_cosine_metric(data_tensor[i], data_tensor[j], m_indices, f_u, f_v)
-            dist_matrix[i, j] = dist
-            dist_matrix[j, i] = dist
+# --- 3. Filter ---
+MIN_RATINGS_PER_USER  = 50
+MIN_RATINGS_PER_MOVIE = 20
+user_counts  = df['userId'].value_counts()
+movie_counts = df['movieId'].value_counts()
+df = df[df['userId'].isin(user_counts[user_counts   >= MIN_RATINGS_PER_USER].index)]
+df = df[df['movieId'].isin(movie_counts[movie_counts >= MIN_RATINGS_PER_MOVIE].index)]
+print(f"After filtering: {df['userId'].nunique():,} users | {df['movieId'].nunique():,} movies")
 
-    return dist_matrix
+# --- 4. Pivot ---
+def build_pivot(df):
+    return df.pivot_table(index='userId', columns='movieId', values='rating', fill_value=0)
 
+pivot = run_timed("Building User x Movie matrix", build_pivot, df)
+X_sparse = csr_matrix(pivot.values.astype(np.float64))
+print(f"Matrix shape: {X_sparse.shape} (Users x Movies)")
 
-# --- Execution ---
-# Assuming 'X' is movie feature matrix
-# 1. Load your data (Assuming it's a 2D array of movie features)
-# For this example, let's assume X is loaded from RAW_DATA_NPY
-X = np.load(RAW_DATA_NPY)
+# --- 5. Weights ---
+n_features = X_sparse.shape[1]
+f_u = np.ones(n_features)
+f_v = np.ones(n_features)
 
-# 2. Setup your parameters (m should be indices of features to consider)
-m = np.arange(X.shape[1])
-f_u = np.ones(X.shape[1]) # Example weight vectors
-f_v = np.ones(X.shape[1])
+# --- 6. Distance Matrix (computed once, reused for all cluster counts) ---
+dist_mat = run_timed(
+    "Calculating distance matrix",
+    calculate_sparse_custom_cosine, X_sparse, f_u, f_v
+)
 
-# 3. Calculate Distance Matrix
-dist_mat = calculate_custom_distance_matrix(X, m, f_u, f_v)
+# --- 7. KMeans + Plot for k = 4, 5, 6, 7 ---
+cluster_counts = [4, 5, 6, 7]
+palettes = ['viridis', 'plasma', 'tab10', 'Set2']
 
-# 4. Perform Clustering
-# We use KMeans on the distances to group movies with similar "profiles"
-n_clusters = 5
-kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
-clusters = kmeans.fit_predict(dist_mat)
+fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig.suptitle('Movie Clusters — Optimized Sparse Cosine', fontsize=16, fontweight='bold', y=1.01)
+axes = axes.flatten()
 
-print("Clustering complete. {len(np.unique(clusters))} clusters identified.")
+for ax, k, palette in zip(axes, cluster_counts, palettes):
+    clusters = run_timed(f"KMeans k={k}", KMeans(
+        n_clusters=k, random_state=42, n_init='auto'
+    ).fit_predict, dist_mat)
 
-# 5. Visualization & Saving
-plt.figure(figsize=(10, 7))
-sns.scatterplot(x=dist_mat[:, 0], y=dist_mat[:, 1], hue=clusters, palette='deep')
-plt.title(f'Movie Clusters (k={n_clusters}) - Custom Metric')
+    sns.scatterplot(
+        x=dist_mat[:, 0],
+        y=dist_mat[:, 1],
+        hue=clusters,
+        palette=palette,
+        ax=ax,
+        legend='full',
+        s=15,           # smaller dots — looks cleaner with many points
+        alpha=0.7
+    )
+    ax.set_title(f'k = {k}', fontsize=13, fontweight='bold')
+    ax.set_xlabel('Distance Dimension 1')
+    ax.set_ylabel('Distance Dimension 2')
+    ax.legend(title='Cluster', bbox_to_anchor=(1.01, 1), loc='upper left')
 
-# Save to your plots directory
-SAVE_PATH = os.path.join(PLOTS_DIR, 'movie_clustering_results.png')
-plt.savefig(SAVE_PATH)
+plt.tight_layout()
+plt.savefig('../../plots/movie_clustering_results.png', bbox_inches='tight', dpi=150)
 plt.show()
 
+total_elapsed = time.perf_counter() - total_start
+print(f"\nDone in {total_elapsed:.2f}s ({total_elapsed / 60:.2f} min)")
