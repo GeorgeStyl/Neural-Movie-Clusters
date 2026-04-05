@@ -19,9 +19,9 @@ split_data = s.str.split(',', expand=True)
 
 # Make sure that no entry had extra ","'s, thus creating extra columns
 if len(split_data.columns) > 4:
-    print('Original dataset contains rows with unexpected extra comma-separated fields. Please handle.')
+    print('\nOriginal dataset contains rows with unexpected extra comma-separated fields. Please handle.')
 else:
-    print('All rows in the original dataset have the expected number of fields. Proceed further.')
+    print('\nAll rows in the original dataset have the expected number of fields. Proceed further.')
 
 # Clean and convert each column appropriately
 split_data[0] = split_data[0].str[2:].astype(int)  # Remove 'ur' prefix for each user, convert to int
@@ -34,7 +34,7 @@ wrong_ratings_flag = len(split_data[(split_data[2] < 0) | (split_data[2] > 10)])
 if wrong_ratings_flag:
     print('Rating column contains invalid entries. Please handle.')
 else:
-    print('Dataset does not contain invalid ratings or null entries. Proceed further.')
+    print('\nDataset does not contain invalid ratings or null entries. Proceed further.')
 
 # Regarding Null entries, no explicit check is necessary here. Regarding columns "username", "rating" and "movie id",
 # the absence of such entries is ensured by the completion of type conversions of the respective columns.
@@ -42,6 +42,21 @@ else:
 
 # Convert back to numpy array
 array = split_data.to_numpy()
+print('\nInspection completed. Dataset successfully converted to NumPy array.')
+
+# Dataset summary statistics
+num_users = split_data[0].nunique()
+num_movies = split_data[1].nunique()
+num_ratings = len(split_data)
+timeline_start = split_data[3].min()
+timeline_end = split_data[3].max()
+
+print(f'\nDataset summary:')
+print(f'- Number of unique users: {num_users}')
+print(f'- Number of unique movies: {num_movies}')
+print(f'- Total number of ratings: {num_ratings}')
+print(f'- Rating timeline: from {timeline_start.date()} to {timeline_end.date()}')
 
 # Save the cleaned dataset
 np.save(r'../datasets/dataset_clean.npy', array, )
+print('NumPy array saved successfully.')

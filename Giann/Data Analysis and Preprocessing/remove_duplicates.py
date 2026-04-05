@@ -31,7 +31,7 @@ df.sort_index(inplace=True)
 # Calculate the number of rows that were found to be duplicate
 len_after = len(df)
 
-print(f'Entries dropped: {len_before - len_after}')
+print(f'\nEntries dropped: {len_before - len_after}')
 
 # Convert back to np.array and save
 array = df.to_numpy()
